@@ -1,11 +1,11 @@
 #!name=哔哩哔哩去广告 · 自用
-#!desc=开屏 / 首页推荐 / 动态 / 播放页(UP主推荐) / 直播 / 我的页 广告清理；JSON 与 grpc-web 双路径；零第三方依赖、零外发请求、异常一律原样放行
+#!desc=开屏/摇一摇 / 首页推荐 / 动态 / 播放页(UP主推荐) / 直播 / 我的页 广告清理 · v3 · JSON 与 grpc-web 双路径 · 零第三方依赖、零外发请求
 #!author=YG
 #!homepage=https://github.com/XwFounder/bili-clean
 #!icon=https://github.com/XwFounder/bili-clean/raw/main/icon.png
 
 [MITM]
-hostname = %APPEND% app.bilibili.com, app.biliapi.net, grpc.biliapi.net, api.bilibili.com, api.live.bilibili.com, api.vc.bilibili.com, manga.bilibili.com
+hostname = app.bilibili.com, app.biliapi.net, grpc.biliapi.net, api.bilibili.com, api.live.bilibili.com, api.vc.bilibili.com, manga.bilibili.com
 
 [Rewrite]
 # 开屏 IP 素材请求
