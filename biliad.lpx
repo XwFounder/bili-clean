@@ -18,8 +18,9 @@ AND,((DOMAIN-SUFFIX,biliapi.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT
 hostname = app.bilibili.com, app.biliapi.net, grpc.biliapi.net, api.biliapi.net, api.bilibili.com, api.live.bilibili.com, api.vc.bilibili.com, manga.bilibili.com
 
 [Rewrite]
-# 开屏实时展示请求：直接返回 {}，不依赖脚本（splash/list 预加载、brand/list、event/list2 仍由脚本清空）
-^https?:\/\/app\.bilibili\.com\/x\/v2\/splash\/show(\?|$) reject-dict
+# 开屏全部接口（实时展示 show / 预加载 list / brand / 摇一摇 event/list2 / place）：直接返回 {}。
+# 纯重写、不依赖脚本——客户端跳过 [Script] 时开屏也能生效；下方 [Script] 里的 splash 规则仅作兜底
+^https?:\/\/app\.bilibili\.com\/x\/v2\/splash\/(show|list|brand\/list|event\/list2|place)(\?|$) reject-dict
 # 开屏 IP 素材请求
 ^https?:\/\/app\.bilibili\.com\/x\/resource\/ip(\?|$) reject-dict
 # 首页右上角活动入口
