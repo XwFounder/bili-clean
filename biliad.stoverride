@@ -1,0 +1,87 @@
+# 哔哩哔哩去广告 · Stash 覆写
+# 用法：Stash → 覆写（Override）→ 添加 → 粘贴本文件 raw 链接 → 启用
+# 改了 biliad.js 后，Stash 按 interval 自动拉新；想立刻生效就在覆写页面手动更新一次
+
+name: 哔哩哔哩去广告
+desc: 开屏/摇一摇、首页推荐、播放页 UP 主推荐、动态、直播、我的页
+author: YG
+homepage: 'https://github.com/XwFounder/bili-clean'
+icon: 'https://github.com/XwFounder/bili-clean/raw/main/icon.png'
+category: 哔哩哔哩
+version: '3'
+
+http:
+  # MITM 域名：开屏/首页/搜索在 app.bilibili.com，播放页与动态走 grpc
+  mitm:
+    - 'app.bilibili.com'
+    - 'app.biliapi.net'
+    - 'grpc.biliapi.net'
+    - 'api.bilibili.com'
+    - 'api.live.bilibili.com'
+    - 'api.vc.bilibili.com'
+    - 'manga.bilibili.com'
+
+  # 开屏：把 data 里的素材数组全部清空。用 Stash 原生 jq，不依赖 JS，
+  # 这一条覆盖 splash/list、splash/show、splash/event/list2（摇一摇互动素材）
+  body-rewrite:
+    - '^https://app\.bilibili\.com/x/v2/splash/ response-jq (.data.show, .data.event_list, .data.items, .data.list) = []'
+
+  # 不返回内容的接口，直接给空对象
+  mock:
+    - match: '^https?://app\.bilibili\.com/x/resource/ip'
+      text: '{"code":0,"message":"0","ttl":1,"data":{}}'
+      status-code: 200
+    - match: '^https?://app\.bilibili\.com/x/resource/top/activity'
+      text: '{"code":0,"message":"0","ttl":1,"data":{}}'
+      status-code: 200
+    - match: '^https?://app\.bilibili\.com/x/v2/search/defaultwords'
+      text: '{"code":0,"message":"0","ttl":1,"data":{"show_name":"","name":"","value":""}}'
+      status-code: 200
+    - match: '^https?://api\.vc\.bilibili\.com/search_svr/v\d+/Search/recommend_words'
+      text: '{"code":0,"message":"0","ttl":1,"data":{"show_name":"","name":"","value":""}}'
+      status-code: 200
+    - match: '^https?://api\.bilibili\.com/x/vip/ads/material/report'
+      text: '{"code":0,"message":"0","ttl":1,"data":null}'
+      status-code: 200
+    - match: '^https?://api\.bilibili\.com/pgc/season/player/cards'
+      text: '{"code":0,"message":"0","ttl":1,"data":{}}'
+      status-code: 200
+    - match: '^https?://api\.bilibili\.com/pgc/season/app/related/recommend'
+      text: '{"code":0,"message":"0","ttl":1,"data":[]}'
+      status-code: 200
+    - match: '^https?://api\.vc\.bilibili\.com/topic_svr/v1/topic_svr'
+      text: '{"code":0,"message":"0","ttl":1,"data":{}}'
+      status-code: 200
+    - match: '^https?://manga\.bilibili\.com/twirp/comic\.v\d+\.Comic/(Flash|ListFlash)'
+      text: '{"code":0,"message":"0","data":{}}'
+      status-code: 200
+
+script-providers:
+  biliad:
+    url: 'https://raw.githubusercontent.com/XwFounder/bili-clean/main/biliad.js'
+    interval: 86400
+
+script:
+  # 首页推荐 / tab 入口 / 我的页 / 直播 / 动态（JSON）
+  - name: biliad
+    match: '^https://app\.bilibili\.com/x/(v2/(feed/index|account/mine)|resource/show/tab)'
+    type: response
+    require-body: true
+    timeout: 10
+  - name: biliad
+    match: '^https://api\.live\.bilibili\.com/xlive/app-room/v1/index/getInfoByRoom'
+    type: response
+    require-body: true
+    timeout: 10
+  - name: biliad
+    match: '^https://api\.vc\.bilibili\.com/dynamic_svr/v1/dynamic_svr/dynamic_(new|history)'
+    type: response
+    require-body: true
+    timeout: 10
+  # 播放页 UP 主推荐广告（ViewReply.cm）+ 动态页推广卡（DynamicItem.card_type=15），grpc-web 二进制
+  - name: biliad
+    match: '^https://(grpc\.biliapi\.net|app\.biliapi\.net|app\.bilibili\.com)/bilibili\.app\.(viewunite\.v1\.View/View|view\.v1\.View/View|dynamic\.v2\.Dynamic/DynAll)'
+    type: response
+    require-body: true
+    binary-mode: true
+    timeout: 10
