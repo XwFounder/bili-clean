@@ -8,7 +8,16 @@ author: YG
 homepage: 'https://github.com/XwFounder/bili-clean'
 icon: 'https://github.com/XwFounder/bili-clean/raw/main/icon.png'
 category: 哔哩哔哩
-version: '3'
+version: '4'
+
+# 规则（覆写会把它们插到现有规则最前面）
+# B 站开屏等请求一旦走 QUIC(UDP 443) 就完全绕过 MITM，表现为「其他广告没了，只有开屏摇一摇还在」。
+# 这里阻断 QUIC，强制回落 TCP，让请求进入 MITM；cm.bilibili.com 是广告平台域名。
+rules:
+  - 'DOMAIN-SUFFIX,cm.bilibili.com,REJECT'
+  - 'AND,((DOMAIN-SUFFIX,bilibili.com),(PROTOCOL,QUIC)),REJECT'
+  - 'AND,((DOMAIN-SUFFIX,biliapi.net),(PROTOCOL,QUIC)),REJECT'
+  - 'AND,((DOMAIN-SUFFIX,biliapi.com),(PROTOCOL,QUIC)),REJECT'
 
 http:
   # MITM 域名：开屏/首页/搜索在 app.bilibili.com，播放页与动态走 grpc
@@ -16,15 +25,20 @@ http:
     - 'app.bilibili.com'
     - 'app.biliapi.net'
     - 'grpc.biliapi.net'
+    - 'api.biliapi.net'
     - 'api.bilibili.com'
     - 'api.live.bilibili.com'
     - 'api.vc.bilibili.com'
     - 'manga.bilibili.com'
 
-  # 开屏：把 data 里的素材数组全部清空。用 Stash 原生 jq，不依赖 JS，
-  # 这一条覆盖 splash/list、splash/show、splash/event/list2（摇一摇互动素材）
+  # 开屏实时展示请求：直接返回 {}（参考规则同款），不依赖 jq/JS
+  url-rewrite:
+    - '^https?://app\.bilibili\.com/x/v2/splash/show(\?|$) - reject-dict'
+
+  # 开屏预加载 / brand / 摇一摇互动素材（splash/list、brand/list、event/list2 …）：
+  # 把 data 里所有数组清空，标量字段（max_time 等）保留；比逐个写字段名更抗改版。需要 Stash 2.8+
   body-rewrite:
-    - '^https://app\.bilibili\.com/x/v2/splash/ response-jq (.data.show, .data.event_list, .data.items, .data.list) = []'
+    - '^https://app\.bilibili\.com/x/v2/splash/ response-jq .data |= (if type == "object" then map_values(if type == "array" then [] else . end) else . end)'
 
   # 不返回内容的接口，直接给空对象
   mock:
@@ -40,13 +54,13 @@ http:
     - match: '^https?://api\.vc\.bilibili\.com/search_svr/v\d+/Search/recommend_words'
       text: '{"code":0,"message":"0","ttl":1,"data":{"show_name":"","name":"","value":""}}'
       status-code: 200
-    - match: '^https?://api\.bilibili\.com/x/vip/ads/material/report'
+    - match: '^https?://api\.(bilibili|biliapi)\.(com|net)/x/vip/ads/material/report'
       text: '{"code":0,"message":"0","ttl":1,"data":null}'
       status-code: 200
-    - match: '^https?://api\.bilibili\.com/pgc/season/player/cards'
+    - match: '^https?://api\.(bilibili|biliapi)\.(com|net)/pgc/season/player/cards'
       text: '{"code":0,"message":"0","ttl":1,"data":{}}'
       status-code: 200
-    - match: '^https?://api\.bilibili\.com/pgc/season/app/related/recommend'
+    - match: '^https?://api\.(bilibili|biliapi)\.(com|net)/pgc/season/app/related/recommend'
       text: '{"code":0,"message":"0","ttl":1,"data":[]}'
       status-code: 200
     - match: '^https?://api\.vc\.bilibili\.com/topic_svr/v1/topic_svr'
