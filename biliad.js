@@ -17,7 +17,9 @@ const CFG = {
   removeLiveBanner: true, // 直播间活动 banner
 };
 
-const DEBUG = false;
+// 插件里 argument="debug" 可打开日志（Loon 配置 → 插件 → 参数），留空即关闭
+let DEBUG = false;
+try { DEBUG = /debug/.test(String($argument || '')); } catch (e) { DEBUG = false; }
 const log = (...a) => { if (DEBUG) console.log('[biliad]', ...a); };
 
 /* ============================ JSON 接口 ============================ */
@@ -33,7 +35,7 @@ function handleJson() {
   if (!data || typeof data !== 'object') return {};
 
   try {
-    if (/x\/v2\/splash\/list/.test(url)) stripSplash(data);
+    if (/x\/v2\/splash\//.test(url)) stripSplash(data);
     else if (/x\/v2\/feed\/index/.test(url)) stripFeed(data);
     else if (/resource\/show\/tab/.test(url)) stripTab(data);
     else if (/x\/v2\/account\/mine/.test(url)) stripMine(data);
@@ -48,10 +50,12 @@ function handleJson() {
 }
 
 // 开屏：清空素材列表，客户端走默认占位图
+// 置空数组而不是删字段——缺字段时客户端可能回落到内置素材或上一次的缓存配置
 function stripSplash(d) {
-  if (Array.isArray(d.items)) d.items = [];
-  if (Array.isArray(d.list)) d.list = [];
-  if (d.show) delete d.show;
+  // splash/list → items；splash/show → show[]；splash/event/list2 → event_list[]（摇一摇互动广告就在这）
+  for (const k of ['items', 'list', 'show', 'event_list']) {
+    if (k in d) d[k] = [];
+  }
 }
 
 // 首页推荐：按 card_type / card_goto 组合剔除推广卡
@@ -62,10 +66,13 @@ function stripFeed(d) {
 
 function isFeedAd(item) {
   const ct = String(item.card_type || '');
-  const cg = String(item.card_goto || '');
+  const cg = String(item.card_goto || item.goto || '');
   // 任何携带推广元数据的卡片，直接丢弃（新版加了 card_type 但 goto 未变的场景）
-  if (item.ad_info || (item.item_args && item.item_args.ad_info)) return true;
+  if (item.ad_info) return true;
+  if (item.item_args && item.item_args.ad_info) return true;
   if (cg === 'ad' || cg.indexOf('ad_') === 0) return true;
+  // 营销位统一前缀：cm_v2 / cm_double_v9 等
+  if (ct.indexOf('cm_') === 0) return true;
   // 顶部 banner 位：整版都是 ad 才删，混排正常内容时保留
   if (ct === 'banner_v8' && cg === 'banner') {
     const bs = item.banner_item;
