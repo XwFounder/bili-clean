@@ -22,6 +22,15 @@ let DEBUG = false;
 try { DEBUG = /debug/.test(String($argument || '')); } catch (e) { DEBUG = false; }
 const log = (...a) => { if (DEBUG) console.log('[biliad]', ...a); };
 
+// debug 模式下首次成功改写弹一条通知——用来确认脚本到底有没有被调用
+// （脚本没跑 = 插件没启用 / MITM 证书没信任，跟规则写得对不对无关）
+let NOTIFIED = false;
+function notify(msg) {
+  if (!DEBUG || NOTIFIED) return;
+  NOTIFIED = true;
+  try { $notification.post('biliad', '已生效', msg); } catch (e) {}
+}
+
 /* ============================ JSON 接口 ============================ */
 
 function handleJson() {
@@ -46,15 +55,17 @@ function handleJson() {
     log('handler error', e && e.message);
     return {};
   }
+  notify('json ' + String(url).slice(0, 90));
   return { body: JSON.stringify(body) };
 }
 
 // 开屏：清空素材列表，客户端走默认占位图
-// 置空数组而不是删字段——缺字段时客户端可能回落到内置素材或上一次的缓存配置
+// 开屏素材在响应里必然以数组存在（items / show / event_list 或以后改的新名字），
+// 所以直接清掉 data 里的所有数组，标量字段（max_time 等）原样保留。
+// 比逐个字段名判断更抗改版，也顺手覆盖摇一摇互动素材。
 function stripSplash(d) {
-  // splash/list → items；splash/show → show[]；splash/event/list2 → event_list[]（摇一摇互动广告就在这）
-  for (const k of ['items', 'list', 'show', 'event_list']) {
-    if (k in d) d[k] = [];
+  for (const k of Object.keys(d)) {
+    if (Array.isArray(d[k])) d[k] = [];
   }
 }
 
@@ -144,6 +155,7 @@ function handleGrpc() {
   for (const k of Object.keys(headers)) {
     if (/^grpc-encoding$/i.test(k)) delete headers[k];
   }
+  notify('grpc ' + String(url).slice(0, 90));
   return { body: buildFrame(out, frame.tail), headers };
 }
 
