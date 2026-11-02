@@ -64,9 +64,12 @@ function handleJson() {
 // 所以直接清掉 data 里的所有数组，标量字段（max_time 等）原样保留。
 // 比逐个字段名判断更抗改版，也顺手覆盖摇一摇互动素材。
 function stripSplash(d) {
+  const cleared = [];
   for (const k of Object.keys(d)) {
-    if (Array.isArray(d[k])) d[k] = [];
+    if (Array.isArray(d[k])) { cleared.push(k + '(' + d[k].length + ')'); d[k] = []; }
   }
+  // debug 时能看到这次到底清了哪些字段；没有任何数组说明接口结构变了，需要抓包确认
+  log('splash cleared:', cleared.join(',') || 'none', '| keys:', Object.keys(d).join(','));
 }
 
 // 首页推荐：按 card_type / card_goto 组合剔除推广卡
