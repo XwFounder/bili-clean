@@ -1,13 +1,25 @@
 #!name=哔哩哔哩去广告 · 自用
-#!desc=开屏/摇一摇 / 首页推荐 / 动态 / 播放页(UP主推荐) / 直播 / 我的页 广告清理 · v3 · JSON 与 grpc-web 双路径 · 零第三方依赖、零外发请求
+#!desc=开屏/摇一摇 / 首页推荐 / 动态 / 播放页(UP主推荐) / 直播 / 我的页 广告清理 · v4 · JSON 与 grpc-web 双路径 · 零第三方依赖、零外发请求
 #!author=YG
 #!homepage=https://github.com/XwFounder/bili-clean
 #!icon=https://github.com/XwFounder/bili-clean/raw/main/icon.png
 
+[Rule]
+# 广告平台域名：开屏/信息流的商业广告素材与归因上报都走这里
+DOMAIN-SUFFIX,cm.bilibili.com,REJECT
+# 阻断 QUIC(UDP 443)，强制回落 TCP。
+# B 站开屏等请求一旦走 QUIC，就完全绕过 MITM，脚本和重写都看不到——
+# 表现就是「其他广告都没了，只有开屏摇一摇还在」。
+AND,((DOMAIN-SUFFIX,bilibili.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT
+AND,((DOMAIN-SUFFIX,biliapi.net),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT
+AND,((DOMAIN-SUFFIX,biliapi.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT
+
 [MITM]
-hostname = app.bilibili.com, app.biliapi.net, grpc.biliapi.net, api.bilibili.com, api.live.bilibili.com, api.vc.bilibili.com, manga.bilibili.com
+hostname = app.bilibili.com, app.biliapi.net, grpc.biliapi.net, api.biliapi.net, api.bilibili.com, api.live.bilibili.com, api.vc.bilibili.com, manga.bilibili.com
 
 [Rewrite]
+# 开屏实时展示请求：直接返回 {}，不依赖脚本（splash/list 预加载、brand/list、event/list2 仍由脚本清空）
+^https?:\/\/app\.bilibili\.com\/x\/v2\/splash\/show(\?|$) reject-dict
 # 开屏 IP 素材请求
 ^https?:\/\/app\.bilibili\.com\/x\/resource\/ip(\?|$) reject-dict
 # 首页右上角活动入口
@@ -18,9 +30,9 @@ hostname = app.bilibili.com, app.biliapi.net, grpc.biliapi.net, api.bilibili.com
 # 搜索 grpc 默认词
 ^https?:\/\/app\.bilibili\.com\/bilibili\.app\.interface\.v1\.Search\/Default(\?|$) reject
 # 会员购广告上报 / 播放器小卡片 / 番剧相关推荐
-^https?:\/\/api\.bilibili\.com\/x\/vip\/ads\/material\/report(\?|$) reject-dict
-^https?:\/\/api\.bilibili\.com\/pgc\/season\/player\/cards(\?|$) reject-dict
-^https?:\/\/api\.bilibili\.com\/pgc\/season\/app\/related\/recommend(\?|$) reject-dict
+^https?:\/\/api\.(bilibili|biliapi)\.(com|net)\/x\/vip\/ads\/material\/report(\?|$) reject-dict
+^https?:\/\/api\.(bilibili|biliapi)\.(com|net)\/pgc\/season\/player\/cards(\?|$) reject-dict
+^https?:\/\/api\.(bilibili|biliapi)\.(com|net)\/pgc\/season\/app\/related\/recommend(\?|$) reject-dict
 # 动态话题推广
 ^https?:\/\/api\.vc\.bilibili\.com\/topic_svr\/v1\/topic_svr(\?|$) reject-dict
 # 漫画开屏
